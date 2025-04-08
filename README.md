@@ -21,7 +21,6 @@ This project implements and compares two popular trading strategies — **Moment
 ## 📁 Project Structure 
 
 ```
-.
 ├── main.py       
 ├── README.md                    
 └── example_output.png
@@ -47,5 +46,5 @@ Install all dependencies with:
 pip install pandas numpy matplotlib yfinance
 ```
 
-📃 License
+## 📃 License
 MIT License
