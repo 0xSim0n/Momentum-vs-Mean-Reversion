@@ -29,7 +29,17 @@ def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02, show_plot=Tru
     df['MR_equity'] = (1 + df['MR_return'].fillna(0)).cumprod()
     df['MOM_equity'] = (1 + df['MOM_return'].fillna(0)).cumprod()
 
+    df['BuyHold'] = (1 + df['Return'].fillna(0)).cumprod()
+
     def strategy_metrics(returns):
+        sharpe = returns.mean() / returns.std() * np.sqrt(252)
+        drawdown = (1 + returns.fillna(0)).cumprod().cummax() - (1 + returns.fillna(0)).cumprod()
+        max_dd = drawdown.max()
+        hit_ratio = (returns > 0).sum() / returns.count()
+        return round(sharpe, 2), round(max_dd, 2), round(hit_ratio, 2)
+
+    def buy_hold_metrics(series):
+        returns = series.pct_change().shift(-1)
         sharpe = returns.mean() / returns.std() * np.sqrt(252)
         drawdown = (1 + returns.fillna(0)).cumprod().cummax() - (1 + returns.fillna(0)).cumprod()
         max_dd = drawdown.max()
@@ -38,6 +48,7 @@ def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02, show_plot=Tru
 
     mr_metrics = strategy_metrics(df['MR_return'])
     mom_metrics = strategy_metrics(df['MOM_return'])
+    bh_metrics = buy_hold_metrics(df['Price'])
 
     mr_trades = df['MR_position'].diff().abs() > 0
     num_mr_trades = mr_trades.sum()
@@ -51,18 +62,19 @@ def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02, show_plot=Tru
         plt.figure(figsize=(10, 5))
         df['MR_equity'].plot(label='Mean Reversion')
         df['MOM_equity'].plot(label='Momentum')
-        plt.title('Equity Curve: Mean Reversion vs Momentum')
+        df['BuyHold'].plot(label='Buy & Hold')
+        plt.title('Equity Curve: Mean Reversion vs Momentum vs Buy & Hold')
         plt.legend()
         plt.grid(True)
         plt.show()
 
     metrics_df = pd.DataFrame({
-        'Strategy': ['Mean Reversion', 'Momentum'],
-        'Sharpe': [mr_metrics[0], mom_metrics[0]],
-        'Max Drawdown': [mr_metrics[1], mom_metrics[1]],
-        'Hit Ratio': [mr_metrics[2], mom_metrics[2]],
-        'Trades': [num_mr_trades, num_mom_trades],
-        'Avg Profit/Trade': [round(avg_mr_profit, 4), round(avg_mom_profit, 4)]
+        'Strategy': ['Mean Reversion', 'Momentum', 'Buy & Hold'],
+        'Sharpe': [mr_metrics[0], mom_metrics[0], bh_metrics[0]],
+        'Max Drawdown': [mr_metrics[1], mom_metrics[1], bh_metrics[1]],
+        'Hit Ratio': [mr_metrics[2], mom_metrics[2], bh_metrics[2]],
+        'Trades': [num_mr_trades, num_mom_trades, '-'],
+        'Avg Profit/Trade': [round(avg_mr_profit, 4), round(avg_mom_profit, 4), '-']
     })
 
     return metrics_df, df

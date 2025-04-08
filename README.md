@@ -1,24 +1,32 @@
-# Momentum vs Mean Reversion: Trading Strategy Comparison
+# Momentum vs Mean Reversion: Trading Strategy Backtest
 
-This project implements and compares two popular trading strategies — **Momentum** and **Mean Reversion** — using historical data from SPY and selected large-cap stocks. The goal is to evaluate their performance and risk metrics through backtesting in Python.
+This project implements and compares three trading strategies:
 
-## 📊 Strategies Overview
+- **Momentum**
+- **Mean Reversion**
+- **Buy & Hold (benchmark)**
 
-- **Momentum**: Buy when 5-day returns exceed 2%, sell when below -2%.
-- **Mean Reversion**: Buy when the Z-score of the 10-day moving average is below -1, sell when above 1.
+It uses historical stock data to evaluate performance and risk through backtesting in Python.
+
+## 📊 Strategy Logic
+
+- **Momentum**: Go long if 5-day return > 2%, short if < -2%.
+- **Mean Reversion**: Go long if Z-score (10-day MA) < -1 and price < 200-day MA, short if Z-score > 1 and price > 200-day MA.
+- **Buy & Hold**: Simply buy and hold the asset over the period.
 
 ## 🧪 Methodology
 
 - **Data Source**: Yahoo Finance via `yfinance`
-- **Assets**: SPY, AAPL, MSFT, GOOGL, NVDA, AMZN
-- **Time Period**: 2019–2024
+- **Assets Tested**: SPY, AAPL, MSFT, GOOGL, NVDA, AMZN
+- **Backtest Period**: 2019–2024
 - **Evaluation Metrics**:
   - Sharpe Ratio
-  - Maximum Drawdown
+  - Max Drawdown
   - Hit Ratio (win rate)
+  - Trade Count and Average Profit per Trade
   - Equity Curve
 
-## 📁 Project Structure 
+## 📁 Project Structure
 
 ```
 ├── main.py       
@@ -28,9 +36,17 @@ This project implements and compares two popular trading strategies — **Moment
 
 ## 📈 Example Output
 
-Both strategies were backtested and visualized. Below is a sample equity curve:
+Initial test on SPY comparing Momentum and simple Z-score-based Mean Reversion (no SMA 200 filter).
 
 ![Equity Curve Example](example_output.png)
+
+In the next test, we applied a 200-day moving average filter to the Mean Reversion strategy to avoid counter-trend trades.
+
+![Equity Curve Example  2](output_2.png)
+
+Finally, we added a Buy & Hold benchmark to compare how a passive investment approach would have performed over the same period.
+
+![Equity Curve Example  3](output_3.png)
 
 ## 🔧 Requirements
 
