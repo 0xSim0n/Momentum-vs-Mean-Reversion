@@ -18,8 +18,14 @@ This project implements and compares two popular trading strategies — **Moment
   - Hit Ratio (win rate)
   - Equity Curve
 
-<pre> <code> ## 📁 Project Structure ``` . ├── strategy_comparison.py # Main Python script ├── README.md # Project description └── example_output.png # (Optional) Sample equity curve ``` </code> </pre>
+## 📁 Project Structure 
 
+```
+.
+├── strategy_comparison.py       # Main Python script
+├── README.md                    # Project description
+└── example_output.png           # (Optional) Sample equity curve
+```
 
 ## 📈 Example Output
 
@@ -39,6 +45,7 @@ Install all dependencies with:
 
 ```bash
 pip install pandas numpy matplotlib yfinance
+```
 
 📃 License
 MIT License
