@@ -22,9 +22,9 @@ This project implements and compares two popular trading strategies — **Moment
 
 ```
 .
-├── strategy_comparison.py       # Main Python script
-├── README.md                    # Project description
-└── example_output.png           # (Optional) Sample equity curve
+├── main.py       
+├── README.md                    
+└── example_output.png
 ```
 
 ## 📈 Example Output
