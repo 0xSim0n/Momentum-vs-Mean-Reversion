@@ -35,19 +35,28 @@ def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02, show_plot=Tru
     df['BuyHold'] = (1 + df['Return'].fillna(0)).cumprod()
 
     def strategy_metrics(returns):
+        returns = returns.dropna()
         sharpe = returns.mean() / returns.std() * np.sqrt(252)
-        drawdown = (1 + returns.fillna(0)).cumprod().cummax() - (1 + returns.fillna(0)).cumprod()
+        sortino = returns.mean() / returns[returns < 0].std() * np.sqrt(252)
+        volatility = returns.std() * np.sqrt(252)
+        cagr = (1 + returns).prod() ** (252 / len(returns)) - 1
+
+        drawdown = (1 + returns).cumprod().cummax() - (1 + returns).cumprod()
         max_dd = drawdown.max()
-        hit_ratio = (returns > 0).sum() / returns.count()
-        return round(sharpe, 2), round(max_dd, 2), round(hit_ratio, 2)
+        hit_ratio = (returns > 0).sum() / len(returns)
+
+        return {
+        'Sharpe': round(sharpe, 2),
+        'Sortino': round(sortino, 2),
+        'Volatility': round(volatility, 2),
+        'CAGR': round(cagr, 2),
+        'Max Drawdown': round(max_dd, 2),
+        'Hit Ratio': round(hit_ratio, 2)
+        }
 
     def buy_hold_metrics(series):
-        returns = series.pct_change().shift(-1)
-        sharpe = returns.mean() / returns.std() * np.sqrt(252)
-        drawdown = (1 + returns.fillna(0)).cumprod().cummax() - (1 + returns.fillna(0)).cumprod()
-        max_dd = drawdown.max()
-        hit_ratio = (returns > 0).sum() / returns.count()
-        return round(sharpe, 2), round(max_dd, 2), round(hit_ratio, 2)
+        returns = series.pct_change().shift(-1).dropna()
+        return strategy_metrics(returns)
 
     mr_metrics = strategy_metrics(df['MR_return'])
     mom_metrics = strategy_metrics(df['MOM_return'])
@@ -58,24 +67,16 @@ def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02, show_plot=Tru
     mom_trades = df['MOM_position'].diff().abs() > 0
     comb_trades = df['COMB_position'].diff().abs() > 0
 
-    metrics_df = pd.DataFrame({
-        'Strategy': ['Mean Reversion', 'Momentum', 'Combined', 'Buy & Hold'],
-        'Sharpe': [mr_metrics[0], mom_metrics[0], comb_metrics[0], bh_metrics[0]],
-        'Max Drawdown': [mr_metrics[1], mom_metrics[1], comb_metrics[1], bh_metrics[1]],
-        'Hit Ratio': [mr_metrics[2], mom_metrics[2], comb_metrics[2], bh_metrics[2]],
-        'Trades': [
-            mr_trades.sum(),
-            mom_trades.sum(),
-            comb_trades.sum(),
-            '-'
-        ],
-        'Avg Profit/Trade': [
-            round(df['MR_return'][mr_trades].mean(), 4),
-            round(df['MOM_return'][mom_trades].mean(), 4),
-            round(df['COMB_return'][comb_trades].mean(), 4),
-            '-'
-        ]
-    })
+    metrics_df = pd.DataFrame([
+        {'Strategy': 'Mean Reversion', **mr_metrics,
+        'Trades': mr_trades.sum(), 'Avg Profit/Trade': round(df['MR_return'][mr_trades].mean(), 4)},
+        {'Strategy': 'Momentum', **mom_metrics,
+        'Trades': mom_trades.sum(), 'Avg Profit/Trade': round(df['MOM_return'][mom_trades].mean(), 4)},
+        {'Strategy': 'Combined', **comb_metrics,
+        'Trades': comb_trades.sum(), 'Avg Profit/Trade': round(df['COMB_return'][comb_trades].mean(), 4)},
+        {'Strategy': 'Buy & Hold', **bh_metrics,
+        'Trades': '-', 'Avg Profit/Trade': '-'}
+    ])
 
     if show_plot:
         plt.figure(figsize=(10, 6))

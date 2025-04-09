@@ -4,6 +4,7 @@ This project implements and compares three trading strategies:
 
 - **Momentum**
 - **Mean Reversion**
+- **Combined (Momentum + Mean Reversion)**
 - **Buy & Hold (benchmark)**
 
 It uses historical stock data to evaluate performance and risk through backtesting in Python.
@@ -22,10 +23,14 @@ It uses historical stock data to evaluate performance and risk through backtesti
 - **Backtest Period**: 2019–2024
 - **Evaluation Metrics**:
   - Sharpe Ratio
+  - Sortino Ratio
+  - Volatility
+  - CAGR (Compound Annual Growth Rate)
   - Max Drawdown
   - Hit Ratio (win rate)
-  - Trade Count and Average Profit per Trade
-  - Equity Curve
+  - Number of Trades
+  - Average Profit per Trade
+  - Equity Curve Plot
 
 ## 📁 Project Structure
 
