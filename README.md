@@ -55,6 +55,10 @@ Finally, we added a Buy & Hold benchmark to compare how a passive investment app
 
 ![Equity Curve Example  3](output_3.png)
 
+All equity curves and metrics now reflect results after accounting for transaction costs, making the backtest more realistic.
+
+![Equity Curve Example  4](output_4.png)
+
 ## 🔧 Requirements
 
 - Python 3.x
