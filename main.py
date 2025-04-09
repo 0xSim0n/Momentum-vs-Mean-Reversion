@@ -22,13 +22,16 @@ def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02, show_plot=Tru
     df['MR_position'] = df['MR_signal'].replace(to_replace=0, method='ffill').fillna(0)
     df['MOM_position'] = df['MOM_signal'].replace(to_replace=0, method='ffill').fillna(0)
 
+    df['COMB_position'] = ((df['MR_position'] + df['MOM_position']) / 2).round()
+
     df['Return'] = df['Price'].pct_change().shift(-1)
     df['MR_return'] = df['MR_position'] * df['Return']
     df['MOM_return'] = df['MOM_position'] * df['Return']
+    df['COMB_return'] = df['COMB_position'] * df['Return']
 
     df['MR_equity'] = (1 + df['MR_return'].fillna(0)).cumprod()
     df['MOM_equity'] = (1 + df['MOM_return'].fillna(0)).cumprod()
-
+    df['COMB_equity'] = (1 + df['COMB_return'].fillna(0)).cumprod()
     df['BuyHold'] = (1 + df['Return'].fillna(0)).cumprod()
 
     def strategy_metrics(returns):
@@ -48,34 +51,42 @@ def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02, show_plot=Tru
 
     mr_metrics = strategy_metrics(df['MR_return'])
     mom_metrics = strategy_metrics(df['MOM_return'])
+    comb_metrics = strategy_metrics(df['COMB_return'])
     bh_metrics = buy_hold_metrics(df['Price'])
 
     mr_trades = df['MR_position'].diff().abs() > 0
-    num_mr_trades = mr_trades.sum()
-    avg_mr_profit = df['MR_return'][mr_trades].mean()
-
     mom_trades = df['MOM_position'].diff().abs() > 0
-    num_mom_trades = mom_trades.sum()
-    avg_mom_profit = df['MOM_return'][mom_trades].mean()
+    comb_trades = df['COMB_position'].diff().abs() > 0
+
+    metrics_df = pd.DataFrame({
+        'Strategy': ['Mean Reversion', 'Momentum', 'Combined', 'Buy & Hold'],
+        'Sharpe': [mr_metrics[0], mom_metrics[0], comb_metrics[0], bh_metrics[0]],
+        'Max Drawdown': [mr_metrics[1], mom_metrics[1], comb_metrics[1], bh_metrics[1]],
+        'Hit Ratio': [mr_metrics[2], mom_metrics[2], comb_metrics[2], bh_metrics[2]],
+        'Trades': [
+            mr_trades.sum(),
+            mom_trades.sum(),
+            comb_trades.sum(),
+            '-'
+        ],
+        'Avg Profit/Trade': [
+            round(df['MR_return'][mr_trades].mean(), 4),
+            round(df['MOM_return'][mom_trades].mean(), 4),
+            round(df['COMB_return'][comb_trades].mean(), 4),
+            '-'
+        ]
+    })
 
     if show_plot:
-        plt.figure(figsize=(10, 5))
+        plt.figure(figsize=(10, 6))
         df['MR_equity'].plot(label='Mean Reversion')
         df['MOM_equity'].plot(label='Momentum')
+        df['COMB_equity'].plot(label='Combined Strategy')
         df['BuyHold'].plot(label='Buy & Hold')
-        plt.title('Equity Curve: Mean Reversion vs Momentum vs Buy & Hold')
+        plt.title('Equity Curve: MR vs MOM vs Combined vs Buy & Hold')
         plt.legend()
         plt.grid(True)
         plt.show()
-
-    metrics_df = pd.DataFrame({
-        'Strategy': ['Mean Reversion', 'Momentum', 'Buy & Hold'],
-        'Sharpe': [mr_metrics[0], mom_metrics[0], bh_metrics[0]],
-        'Max Drawdown': [mr_metrics[1], mom_metrics[1], bh_metrics[1]],
-        'Hit Ratio': [mr_metrics[2], mom_metrics[2], bh_metrics[2]],
-        'Trades': [num_mr_trades, num_mom_trades, '-'],
-        'Avg Profit/Trade': [round(avg_mr_profit, 4), round(avg_mom_profit, 4), '-']
-    })
 
     return metrics_df, df
 

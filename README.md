@@ -12,6 +12,7 @@ It uses historical stock data to evaluate performance and risk through backtesti
 
 - **Momentum**: Go long if 5-day return > 2%, short if < -2%.
 - **Mean Reversion**: Go long if Z-score (10-day MA) < -1 and price < 200-day MA, short if Z-score > 1 and price > 200-day MA.
+- **Combined Strategy**: Hybrid of Momentum and Mean Reversion, averaging their signals.
 - **Buy & Hold**: Simply buy and hold the asset over the period.
 
 ## 🧪 Methodology
