@@ -21,6 +21,7 @@ It uses historical stock data to evaluate performance and risk through backtesti
 - **Data Source**: Yahoo Finance via `yfinance`
 - **Assets Tested**: SPY, AAPL, MSFT, GOOGL, NVDA, AMZN
 - **Backtest Period**: 2019–2024
+- **Transaction Costs**: All strategies account for transaction costs (default: 0.1% per trade), applied whenever the position changes. This ensures more realistic performance estimates.
 - **Evaluation Metrics**:
   - Sharpe Ratio
   - Sortino Ratio

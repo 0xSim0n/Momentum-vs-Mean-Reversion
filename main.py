@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02, show_plot=True):
+def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02,  transaction_cost=0.001, show_plot=True):
     df = prices.copy().to_frame(name='Price')
     df['SMA_10'] = df['Price'].rolling(10).mean()
     df['STD_10'] = df['Price'].rolling(10).std()
@@ -21,17 +21,28 @@ def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02, show_plot=Tru
 
     df['MR_position'] = df['MR_signal'].replace(to_replace=0, method='ffill').fillna(0)
     df['MOM_position'] = df['MOM_signal'].replace(to_replace=0, method='ffill').fillna(0)
-
     df['COMB_position'] = ((df['MR_position'] + df['MOM_position']) / 2).round()
 
     df['Return'] = df['Price'].pct_change().shift(-1)
+    df['MR_change'] = df['MR_position'].diff().abs()
+    df['MOM_change'] = df['MOM_position'].diff().abs()
+    df['COMB_change'] = df['COMB_position'].diff().abs()
+
+    df['MR_cost'] = df['MR_change'] * transaction_cost
+    df['MOM_cost'] = df['MOM_change'] * transaction_cost
+    df['COMB_cost'] = df['COMB_change'] * transaction_cost
+
     df['MR_return'] = df['MR_position'] * df['Return']
     df['MOM_return'] = df['MOM_position'] * df['Return']
     df['COMB_return'] = df['COMB_position'] * df['Return']
 
-    df['MR_equity'] = (1 + df['MR_return'].fillna(0)).cumprod()
-    df['MOM_equity'] = (1 + df['MOM_return'].fillna(0)).cumprod()
-    df['COMB_equity'] = (1 + df['COMB_return'].fillna(0)).cumprod()
+    df['MR_return_net'] = df['MR_return'] - df['MR_cost']
+    df['MOM_return_net'] = df['MOM_return'] - df['MOM_cost']
+    df['COMB_return_net'] = df['COMB_return'] - df['COMB_cost']
+
+    df['MR_equity'] = (1 + df['MR_return_net'].fillna(0)).cumprod()
+    df['MOM_equity'] = (1 + df['MOM_return_net'].fillna(0)).cumprod()
+    df['COMB_equity'] = (1 + df['COMB_return_net'].fillna(0)).cumprod()
     df['BuyHold'] = (1 + df['Return'].fillna(0)).cumprod()
 
     def strategy_metrics(returns):
