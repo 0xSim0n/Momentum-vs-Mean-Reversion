@@ -107,7 +107,17 @@ tickers = ["SPY", "AAPL", "MSFT", "GOOGL", "NVDA", "AMZN"]
 raw_data = yf.download(tickers, start="2019-01-01", end="2024-12-31")
 data = raw_data['Close']
 
-price_series = data['SPY'].dropna()
-metrics, df = backtest_strategy(price_series, z_threshold=1.0, mom_threshold=0.02, show_plot=True)
+all_metrics = []
 
-print(metrics)
+for ticker in tickers:
+    price_series = data[ticker].dropna()
+    try:
+        metrics, _ = backtest_strategy(price_series, z_threshold=1.0, mom_threshold=0.02, show_plot=False)
+        metrics['Ticker'] = ticker
+        all_metrics.append(metrics)
+    except Exception as e:
+        print(f"Error for {ticker}: {e}")
+
+all_results_df = pd.concat(all_metrics, ignore_index=True)
+all_results_df.to_csv("strategy_results.csv", index=False)
+print("Results saved to strategy_results.csv")
