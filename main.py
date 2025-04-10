@@ -2,6 +2,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02,  transaction_cost=0.001, show_plot=True):
     df = prices.copy().to_frame(name='Price')
@@ -108,16 +109,26 @@ raw_data = yf.download(tickers, start="2019-01-01", end="2024-12-31")
 data = raw_data['Close']
 
 all_metrics = []
+comb_equities = {}
 
 for ticker in tickers:
     price_series = data[ticker].dropna()
     try:
-        metrics, _ = backtest_strategy(price_series, z_threshold=1.0, mom_threshold=0.02, show_plot=False)
+        metrics, df = backtest_strategy(price_series, z_threshold=1.0, mom_threshold=0.02, show_plot=False)
         metrics['Ticker'] = ticker
         all_metrics.append(metrics)
+        comb_equities[ticker] = df['COMB_equity']
     except Exception as e:
         print(f"Error for {ticker}: {e}")
 
 all_results_df = pd.concat(all_metrics, ignore_index=True)
 all_results_df.to_csv("strategy_results.csv", index=False)
 print("Results saved to strategy_results.csv")
+
+equity_df = pd.DataFrame(comb_equities).dropna()
+correlation_matrix = equity_df.corr()
+
+plt.figure(figsize=(10, 8))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+plt.title("Correlation of Combined Strategy Equity Curves")
+plt.show()
