@@ -117,7 +117,7 @@ for ticker in tickers:
         metrics, df = backtest_strategy(price_series, z_threshold=1.0, mom_threshold=0.02, show_plot=False)
         metrics['Ticker'] = ticker
         all_metrics.append(metrics)
-        comb_equities[ticker] = df['COMB_equity']
+        comb_equities[ticker] = df['MOM_equity']
     except Exception as e:
         print(f"Error for {ticker}: {e}")
 
@@ -130,5 +130,5 @@ correlation_matrix = equity_df.corr()
 
 plt.figure(figsize=(10, 8))
 sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
-plt.title("Correlation of Combined Strategy Equity Curves")
+plt.title("Correlation of Momentum Strategy Equity Curves")
 plt.show()
