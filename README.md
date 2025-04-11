@@ -37,8 +37,10 @@ It uses historical stock data to evaluate performance and risk through backtesti
 
 ```
 ├── main.py       
-├── README.md                    
-└── example_output.png
+├── README.md    
+├── datasets/                
+└── images/
+
 ```
 
 ## 📈 Example Output
