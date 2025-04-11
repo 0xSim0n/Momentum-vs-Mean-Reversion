@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from itertools import product
 
 def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02,  transaction_cost=0.001, show_plot=True):
     df = prices.copy().to_frame(name='Price')
@@ -132,3 +133,26 @@ plt.figure(figsize=(10, 8))
 sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
 plt.title("Correlation of Momentum Strategy Equity Curves")
 plt.show()
+
+z_threshold_values = [0.5, 1.0, 1.5]
+mom_threshold_values = [0.01, 0.02, 0.03]
+transaction_cost_values = [0.0005, 0.001]
+
+grid_results = []
+
+for z_val, mom_val, cost_val in product(z_threshold_values, mom_threshold_values, transaction_cost_values):
+    for ticker in tickers:
+        price_series = data[ticker].dropna()
+        try:
+            metrics, _ = backtest_strategy(price_series, z_threshold=z_val, mom_threshold=mom_val, transaction_cost=cost_val, show_plot=False)
+            metrics['Ticker'] = ticker
+            metrics['Z_threshold'] = z_val
+            metrics['MOM_threshold'] = mom_val
+            metrics['Transaction_cost'] = cost_val
+            grid_results.append(metrics)
+        except Exception as e:
+            print(f"Error for {ticker} with z={z_val}, mom={mom_val}, cost={cost_val}: {e}")
+
+grid_results_df = pd.concat(grid_results, ignore_index=True)
+grid_results_df.to_csv("parameter_grid_search_results.csv", index=False)
+print("Parameter search results saved to parameter_grid_search_results.csv")
