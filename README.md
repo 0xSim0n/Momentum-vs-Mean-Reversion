@@ -11,9 +11,9 @@ It uses historical stock data to evaluate performance and risk through backtesti
 
 ## 📊 Strategy Logic
 
-- **Momentum**: Go long if 5-day return > 2%, short if < -2%.
-- **Mean Reversion**: Go long if Z-score (10-day MA) < -1 and price < 200-day MA, short if Z-score > 1 and price > 200-day MA.
-- **Combined Strategy**: Hybrid of Momentum and Mean Reversion, averaging their signals.
+- **Momentum**: Long if 20-day return exceeds mom_threshold, MACD confirms uptrend, RSI > 50, and above average volume.
+- **Mean Reversion**: Mean Reversion: Long when Z-score < -z_threshold, price below 200-day MA, RSI < 30, ATR above rolling average, and above average volume.
+- **Combined Strategy**: Takes the average position from both strategies and rounds to nearest integer.
 - **Buy & Hold**: Simply buy and hold the asset over the period.
 
 ## 🧪 Methodology
@@ -38,7 +38,7 @@ It uses historical stock data to evaluate performance and risk through backtesti
 ```
 ├── main.py       
 ├── README.md    
-├── datasets/                
+├── processed_data/                
 └── images/
 
 ```
@@ -47,27 +47,27 @@ It uses historical stock data to evaluate performance and risk through backtesti
 
 Initial test on SPY comparing Momentum and simple Z-score-based Mean Reversion (no SMA 200 filter).
 
-![Equity Curve Example](iamges/output_1.png)
+![Equity Curve Example](images/output_1.png)
 
 In the next test, I applied a 200-day moving average filter to the Mean Reversion strategy to avoid counter-trend trades.
 
-![Equity Curve Example  2](iamges/output_2.png)
+![Equity Curve Example  2](images/output_2.png)
 
 Finally, I added a Buy & Hold benchmark to compare how a passive investment approach would have performed over the same period.
 
-![Equity Curve Example  3](iamges/output_3.png)
+![Equity Curve Example  3](images/output_3.png)
 
 All equity curves and metrics now reflect results after accounting for transaction costs, making the backtest more realistic.
 
 ![Equity Curve Example  4](images/output_4.png)
 
-I created a heatmap showing the correlation of momentum strategy equity curves across different stocks.
+I created a heat map showing the correlation of the momentum strategy's stock curves on various mid-cap stocks, but removed the funciton of creating this.
 
-![Heatmap Example  1](iamges/output_5.png)
+![Heatmap Example  1](images/output_5.png)
 
 ## Strategy Backtest Summary for SPY
 
-Here are the performance metrics of each strategy applied to SPY:
+Here are the performance metrics of the best strategy applied to each ticker:
 
 | Strategy       | Sharpe | Sortino | Volatility | CAGR  | Max Drawdown | Hit Ratio | Trades | Avg Profit/Trade | Ticker | Cap  | Fee   | Slippage |
 |----------------|--------|---------|------------|-------|---------------|-----------|--------|------------------|--------|------|-------|----------|
@@ -97,7 +97,24 @@ Here are the performance metrics of each strategy applied to SPY:
 | Momentum       | 0.51   | 0.8     | 0.74       | 0.15  | 1.97          | 0.42      | 17     | -0.0016          | LUMN   | Small | 0.02  | 0.0001   |
 | Buy & Hold     | 0.93   | 1.88    | 1.37       | 0.5   | 47.99         | 0.45      | -      | -                | MARA   | Small | 0.005 | 0.0001   |
 
-➡️ See full results in [best_strategies_all.csv](best_strategies_all.csv)
+➡️ See full results in [best_strategies_all.csv](processed_data/best_strategies_all.csv)
+
+## 📌 Conclusion
+
+- **Buy & Hold often outperforms active strategies on large-cap stocks.**  
+  Stocks like **NVDA** and **AAPL** delivered exceptional long-term performance, with NVDA achieving a **Sharpe ratio of 1.45** and **CAGR of 0.86**. For strong trending stocks, passive investing proved highly effective.
+
+- **Momentum strategies performed better than Mean Reversion overall**, especially on **mid- and small-cap stocks**. In some cases (e.g., **PTON**), Momentum even outperformed Buy & Hold, showing promise in volatile or breakout-driven markets.
+
+- **Mean Reversion underperformed in most cases**, often resulting in **negative average profit per trade** and **low Sharpe ratios**. It may require more advanced filtering or could simply be less effective in a trend-heavy macro environment like 2019–2024.
+
+- **Combined strategies delivered mixed results.**  
+  While averaging signals helped smooth out decisions, it often **diluted the edge** and led to modest performance. However, in some cases like **SPY**, the Combined strategy slightly outperformed Buy & Hold.
+
+- **Transaction costs had a real impact.**  
+  Especially for small caps, **higher slippage and more frequent trades** often eroded performance—emphasizing the importance of execution-aware backtesting.
+
+> Overall, passive investing dominated in trending large-cap names, but active strategies—particularly Momentum—show promise on more volatile stocks. Further refinements and adaptive parameter tuning could improve Mean Reversion results in future work.
 
 ## 🔧 Requirements
 
