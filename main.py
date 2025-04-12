@@ -2,7 +2,6 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from itertools import product
 
 def backtest_strategy(prices, volume, z_threshold=1.5, mom_threshold=0.05, transaction_cost=0.001, show_plot=True):
@@ -129,42 +128,31 @@ def backtest_strategy(prices, volume, z_threshold=1.5, mom_threshold=0.05, trans
 
     return metrics_df, df
 
-tickers = ["SPY", "AAPL", "MSFT", "GOOGL", "NVDA", "AMZN"]
+def save_best_strategies(input_file='parameter_grid_search_results.csv', output_file='best_strategies_all.csv'):
+    df = pd.read_csv(input_file)
+    
+    df['Sharpe'] = pd.to_numeric(df['Sharpe'], errors='coerce')
+    df = df.dropna(subset=['Sharpe'])
+
+    best_strategies = df.loc[df.groupby('Ticker')['Sharpe'].idxmax().values]
+    best_strategies.to_csv(output_file, index=False)
+
+    print(f"The best strategies were saved to a file: {output_file}")
+
+TICKERS = {
+    "small": ["PLUG", "FUBO", "RIOT", "SOFI", "BCLI", "SNDL", "MARA", "LUMN", "OPK"],
+    "mid": ["FSLR", "ALB", "ENPH", "CHWY", "PTON", "ROKU", "LVS", "U", "RUN", "DOCN"],
+    "large": ["SPY", "AAPL", "MSFT", "GOOGL", "NVDA", "AMZN"]
+}
+
+tickers = TICKERS["small"] + TICKERS["mid"] + TICKERS["large"]
 raw_data = yf.download(tickers, start="2019-01-01", end="2024-12-31")
 data = raw_data['Close']
 volume = raw_data['Volume']
 
-all_metrics = []
-comb_equities = {}
-
-for ticker in tickers:
-    price_series = data[ticker].dropna()
-    volume_series = volume[ticker].dropna()
-    if len(price_series) < 210:
-        continue
-    try:
-        metrics, df = backtest_strategy(price_series, volume_series, z_threshold=1.0, mom_threshold=0.02, show_plot=False)
-        metrics['Ticker'] = ticker
-        all_metrics.append(metrics)
-        comb_equities[ticker] = df['COMB_equity']
-    except Exception as e:
-        print(f"Error for {ticker}: {e}")
-
-all_results_df = pd.concat(all_metrics, ignore_index=True)
-all_results_df.to_csv("strategy_results.csv", index=False)
-print("Results saved to strategy_results.csv")
-
-equity_df = pd.DataFrame(comb_equities).dropna()
-correlation_matrix = equity_df.corr()
-
-plt.figure(figsize=(10, 8))
-sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
-plt.title("Correlation of Combined Strategy Equity Curves")
-plt.show()
-
-z_threshold_values = [0.5, 1.0, 1.5]
-mom_threshold_values = [0.01, 0.02, 0.03]
-transaction_cost_values = [0.0005, 0.001]
+z_threshold_values = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+mom_threshold_values = [0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04]
+transaction_cost_values = [0.0001, 0.0005, 0.001, 0.002]
 
 grid_results = []
 
@@ -187,3 +175,5 @@ for z_val, mom_val, cost_val in product(z_threshold_values, mom_threshold_values
 grid_results_df = pd.concat(grid_results, ignore_index=True)
 grid_results_df.to_csv("parameter_grid_search_results.csv", index=False)
 print("Parameter search results saved to parameter_grid_search_results.csv")
+
+save_best_strategies()
