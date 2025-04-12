@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from itertools import product
 
-def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02,  transaction_cost=0.001, show_plot=True):
+def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02, transaction_cost=0.001, show_plot=True):
     df = prices.copy().to_frame(name='Price')
     df['SMA_10'] = df['Price'].rolling(10).mean()
     df['STD_10'] = df['Price'].rolling(10).std()
@@ -21,8 +21,8 @@ def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02,  transaction_
     df.loc[df['Momentum'] > mom_threshold, 'MOM_signal'] = 1
     df.loc[df['Momentum'] < -mom_threshold, 'MOM_signal'] = -1
 
-    df['MR_position'] = df['MR_signal'].replace(to_replace=0, method='ffill').fillna(0)
-    df['MOM_position'] = df['MOM_signal'].replace(to_replace=0, method='ffill').fillna(0)
+    df['MR_position'] = df['MR_signal'].replace(0, np.nan).ffill().fillna(0)
+    df['MOM_position'] = df['MOM_signal'].replace(0, np.nan).ffill().fillna(0)
     df['COMB_position'] = ((df['MR_position'] + df['MOM_position']) / 2).round()
 
     df['Return'] = df['Price'].pct_change().shift(-1)
@@ -53,27 +53,25 @@ def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02,  transaction_
         sortino = returns.mean() / returns[returns < 0].std() * np.sqrt(252)
         volatility = returns.std() * np.sqrt(252)
         cagr = (1 + returns).prod() ** (252 / len(returns)) - 1
-
         drawdown = (1 + returns).cumprod().cummax() - (1 + returns).cumprod()
         max_dd = drawdown.max()
         hit_ratio = (returns > 0).sum() / len(returns)
-
         return {
-        'Sharpe': round(sharpe, 2),
-        'Sortino': round(sortino, 2),
-        'Volatility': round(volatility, 2),
-        'CAGR': round(cagr, 2),
-        'Max Drawdown': round(max_dd, 2),
-        'Hit Ratio': round(hit_ratio, 2)
+            'Sharpe': round(sharpe, 2),
+            'Sortino': round(sortino, 2),
+            'Volatility': round(volatility, 2),
+            'CAGR': round(cagr, 2),
+            'Max Drawdown': round(max_dd, 2),
+            'Hit Ratio': round(hit_ratio, 2)
         }
 
     def buy_hold_metrics(series):
         returns = series.pct_change().shift(-1).dropna()
         return strategy_metrics(returns)
 
-    mr_metrics = strategy_metrics(df['MR_return'])
-    mom_metrics = strategy_metrics(df['MOM_return'])
-    comb_metrics = strategy_metrics(df['COMB_return'])
+    mr_metrics = strategy_metrics(df['MR_return_net'])
+    mom_metrics = strategy_metrics(df['MOM_return_net'])
+    comb_metrics = strategy_metrics(df['COMB_return_net'])
     bh_metrics = buy_hold_metrics(df['Price'])
 
     mr_trades = df['MR_position'].diff().abs() > 0
@@ -82,13 +80,13 @@ def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02,  transaction_
 
     metrics_df = pd.DataFrame([
         {'Strategy': 'Mean Reversion', **mr_metrics,
-        'Trades': mr_trades.sum(), 'Avg Profit/Trade': round(df['MR_return'][mr_trades].mean(), 4)},
+         'Trades': mr_trades.sum(), 'Avg Profit/Trade': round(df['MR_return_net'][mr_trades].mean(), 4)},
         {'Strategy': 'Momentum', **mom_metrics,
-        'Trades': mom_trades.sum(), 'Avg Profit/Trade': round(df['MOM_return'][mom_trades].mean(), 4)},
+         'Trades': mom_trades.sum(), 'Avg Profit/Trade': round(df['MOM_return_net'][mom_trades].mean(), 4)},
         {'Strategy': 'Combined', **comb_metrics,
-        'Trades': comb_trades.sum(), 'Avg Profit/Trade': round(df['COMB_return'][comb_trades].mean(), 4)},
+         'Trades': comb_trades.sum(), 'Avg Profit/Trade': round(df['COMB_return_net'][comb_trades].mean(), 4)},
         {'Strategy': 'Buy & Hold', **bh_metrics,
-        'Trades': '-', 'Avg Profit/Trade': '-'}
+         'Trades': '-', 'Avg Profit/Trade': '-'}
     ])
 
     if show_plot:
@@ -105,7 +103,6 @@ def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02,  transaction_
     return metrics_df, df
 
 tickers = ["SPY", "AAPL", "MSFT", "GOOGL", "NVDA", "AMZN"]
-
 raw_data = yf.download(tickers, start="2019-01-01", end="2024-12-31")
 data = raw_data['Close']
 
@@ -114,11 +111,13 @@ comb_equities = {}
 
 for ticker in tickers:
     price_series = data[ticker].dropna()
+    if len(price_series) < 210:
+        continue
     try:
         metrics, df = backtest_strategy(price_series, z_threshold=1.0, mom_threshold=0.02, show_plot=False)
         metrics['Ticker'] = ticker
         all_metrics.append(metrics)
-        comb_equities[ticker] = df['MOM_equity']
+        comb_equities[ticker] = df['COMB_equity']
     except Exception as e:
         print(f"Error for {ticker}: {e}")
 
@@ -131,7 +130,7 @@ correlation_matrix = equity_df.corr()
 
 plt.figure(figsize=(10, 8))
 sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
-plt.title("Correlation of Momentum Strategy Equity Curves")
+plt.title("Correlation of Combined Strategy Equity Curves")
 plt.show()
 
 z_threshold_values = [0.5, 1.0, 1.5]
@@ -143,6 +142,8 @@ grid_results = []
 for z_val, mom_val, cost_val in product(z_threshold_values, mom_threshold_values, transaction_cost_values):
     for ticker in tickers:
         price_series = data[ticker].dropna()
+        if len(price_series) < 210:
+            continue
         try:
             metrics, _ = backtest_strategy(price_series, z_threshold=z_val, mom_threshold=mom_val, transaction_cost=cost_val, show_plot=False)
             metrics['Ticker'] = ticker
