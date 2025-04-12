@@ -11,8 +11,8 @@ It uses historical stock data to evaluate performance and risk through backtesti
 
 ## 📊 Strategy Logic
 
-- **Momentum**: Long if 20-day return exceeds mom_threshold, MACD confirms uptrend, RSI > 50, and above average volume.
-- **Mean Reversion**: Mean Reversion: Long when Z-score < -z_threshold, price below 200-day MA, RSI < 30, ATR above rolling average, and above average volume.
+- **Momentum**: Long if 20-day return exceeds `mom_threshold`, MACD confirms uptrend, RSI > 50, and above average volume.
+- **Mean Reversion**: Mean Reversion: Long when Z-score < -`z_threshold`, price below 200-day MA, RSI < 30, ATR above rolling average, and above average volume.
 - **Combined Strategy**: Takes the average position from both strategies and rounds to nearest integer.
 - **Buy & Hold**: Simply buy and hold the asset over the period.
 
