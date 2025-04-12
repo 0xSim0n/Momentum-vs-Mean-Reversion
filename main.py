@@ -5,46 +5,73 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from itertools import product
 
-def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02, transaction_cost=0.001, show_plot=True):
+def backtest_strategy(prices, volume, z_threshold=1.5, mom_threshold=0.05, transaction_cost=0.001, show_plot=True):
     df = prices.copy().to_frame(name='Price')
-    df['SMA_10'] = df['Price'].rolling(10).mean()
-    df['STD_10'] = df['Price'].rolling(10).std()
-    df['Z_score'] = (df['Price'] - df['SMA_10']) / df['STD_10']
-    df['Momentum'] = df['Price'].pct_change(5)
+    df['Volume'] = volume
+
+    df['SMA_20'] = df['Price'].rolling(20).mean()
+    df['STD_20'] = df['Price'].rolling(20).std()
+    df['Z_score'] = (df['Price'] - df['SMA_20']) / df['STD_20']
     df['SMA_200'] = df['Price'].rolling(200).mean()
+    df['Momentum'] = df['Price'].pct_change(20)
+    df['ATR'] = df['Price'].rolling(14).apply(lambda x: np.mean(np.abs(np.diff(x))), raw=True)
+    df['ATR_mean'] = df['ATR'].rolling(50).mean()
+    ema12 = df['Price'].ewm(span=12, adjust=False).mean()
+    ema26 = df['Price'].ewm(span=26, adjust=False).mean()
+    df['MACD'] = ema12 - ema26
+    df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
+
+    delta = df['Price'].diff()
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+    avg_gain = gain.rolling(14).mean()
+    avg_loss = loss.rolling(14).mean()
+    rs = avg_gain / avg_loss
+    df['RSI'] = 100 - (100 / (1 + rs))
+
+    df['Volume_mean'] = df['Volume'].rolling(20).mean()
+    df['Volume_filter'] = df['Volume'] > df['Volume_mean']
 
     df['MR_signal'] = 0
-    df.loc[(df['Z_score'] < -z_threshold) & (df['Price'] < df['SMA_200']), 'MR_signal'] = 1
-    df.loc[(df['Z_score'] > z_threshold) & (df['Price'] > df['SMA_200']), 'MR_signal'] = -1
+    df.loc[
+        (df['Z_score'] < -z_threshold) &
+        (df['Price'] < df['SMA_200']) &
+        (df['ATR'] > df['ATR_mean']) &
+        (df['RSI'] < 30) &
+        (df['Volume_filter']), 'MR_signal'] = 1
+    df.loc[
+        (df['Z_score'] > z_threshold) &
+        (df['Price'] > df['SMA_200']) &
+        (df['ATR'] > df['ATR_mean']) &
+        (df['RSI'] > 70) &
+        (df['Volume_filter']), 'MR_signal'] = -1
 
     df['MOM_signal'] = 0
-    df.loc[df['Momentum'] > mom_threshold, 'MOM_signal'] = 1
-    df.loc[df['Momentum'] < -mom_threshold, 'MOM_signal'] = -1
+    df.loc[
+        (df['Momentum'] > mom_threshold) &
+        (df['Price'] > df['SMA_200']) &
+        (df['MACD'] > df['Signal_Line']) &
+        (df['RSI'] > 50) &
+        (df['Volume_filter']), 'MOM_signal'] = 1
+    df.loc[
+        (df['Momentum'] < -mom_threshold) &
+        (df['Price'] < df['SMA_200']) &
+        (df['MACD'] < df['Signal_Line']) &
+        (df['RSI'] < 50) &
+        (df['Volume_filter']), 'MOM_signal'] = -1
 
     df['MR_position'] = df['MR_signal'].replace(0, np.nan).ffill().fillna(0)
     df['MOM_position'] = df['MOM_signal'].replace(0, np.nan).ffill().fillna(0)
     df['COMB_position'] = ((df['MR_position'] + df['MOM_position']) / 2).round()
 
     df['Return'] = df['Price'].pct_change().shift(-1)
-    df['MR_change'] = df['MR_position'].diff().abs()
-    df['MOM_change'] = df['MOM_position'].diff().abs()
-    df['COMB_change'] = df['COMB_position'].diff().abs()
+    for strat in ['MR', 'MOM', 'COMB']:
+        df[f'{strat}_change'] = df[f'{strat}_position'].diff().abs()
+        df[f'{strat}_cost'] = df[f'{strat}_change'] * transaction_cost
+        df[f'{strat}_return'] = df[f'{strat}_position'] * df['Return']
+        df[f'{strat}_return_net'] = df[f'{strat}_return'] - df[f'{strat}_cost']
+        df[f'{strat}_equity'] = (1 + df[f'{strat}_return_net'].fillna(0)).cumprod()
 
-    df['MR_cost'] = df['MR_change'] * transaction_cost
-    df['MOM_cost'] = df['MOM_change'] * transaction_cost
-    df['COMB_cost'] = df['COMB_change'] * transaction_cost
-
-    df['MR_return'] = df['MR_position'] * df['Return']
-    df['MOM_return'] = df['MOM_position'] * df['Return']
-    df['COMB_return'] = df['COMB_position'] * df['Return']
-
-    df['MR_return_net'] = df['MR_return'] - df['MR_cost']
-    df['MOM_return_net'] = df['MOM_return'] - df['MOM_cost']
-    df['COMB_return_net'] = df['COMB_return'] - df['COMB_cost']
-
-    df['MR_equity'] = (1 + df['MR_return_net'].fillna(0)).cumprod()
-    df['MOM_equity'] = (1 + df['MOM_return_net'].fillna(0)).cumprod()
-    df['COMB_equity'] = (1 + df['COMB_return_net'].fillna(0)).cumprod()
     df['BuyHold'] = (1 + df['Return'].fillna(0)).cumprod()
 
     def strategy_metrics(returns):
@@ -105,16 +132,18 @@ def backtest_strategy(prices, z_threshold=1.0, mom_threshold=0.02, transaction_c
 tickers = ["SPY", "AAPL", "MSFT", "GOOGL", "NVDA", "AMZN"]
 raw_data = yf.download(tickers, start="2019-01-01", end="2024-12-31")
 data = raw_data['Close']
+volume = raw_data['Volume']
 
 all_metrics = []
 comb_equities = {}
 
 for ticker in tickers:
     price_series = data[ticker].dropna()
+    volume_series = volume[ticker].dropna()
     if len(price_series) < 210:
         continue
     try:
-        metrics, df = backtest_strategy(price_series, z_threshold=1.0, mom_threshold=0.02, show_plot=False)
+        metrics, df = backtest_strategy(price_series, volume_series, z_threshold=1.0, mom_threshold=0.02, show_plot=False)
         metrics['Ticker'] = ticker
         all_metrics.append(metrics)
         comb_equities[ticker] = df['COMB_equity']
@@ -142,10 +171,11 @@ grid_results = []
 for z_val, mom_val, cost_val in product(z_threshold_values, mom_threshold_values, transaction_cost_values):
     for ticker in tickers:
         price_series = data[ticker].dropna()
+        volume_series = volume[ticker].dropna()
         if len(price_series) < 210:
             continue
         try:
-            metrics, _ = backtest_strategy(price_series, z_threshold=z_val, mom_threshold=mom_val, transaction_cost=cost_val, show_plot=False)
+            metrics, _ = backtest_strategy(price_series, volume_series, z_threshold=z_val, mom_threshold=mom_val, transaction_cost=cost_val, show_plot=False)
             metrics['Ticker'] = ticker
             metrics['Z_threshold'] = z_val
             metrics['MOM_threshold'] = mom_val
